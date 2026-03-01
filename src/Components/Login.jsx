@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import axios from "axios";
+import api from "../api/axiosInstance";
 
 const Login = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
@@ -10,7 +10,7 @@ const Login = () => {
 
   const onSubmit = async (data) => {
     try {
-      const response = await axios.post("http://localhost:8080/auth/login", {
+      const response = await api.post("/auth/login", {
         username: data.username,
         password: data.password,
       });
