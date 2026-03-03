@@ -1,57 +1,238 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api/axiosInstance";
 
 const Home = () => {
   const navigate = useNavigate();
+  const username = localStorage.getItem("username");
+  const isLoggedIn = !!localStorage.getItem("token");
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isLoggedIn || !username) return;
+    setLoading(true);
+    api
+      .get(`/api/jobs/${encodeURIComponent(username)}`)
+      .then((res) => setJobs(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setJobs([]))
+      .finally(() => setLoading(false));
+  }, [isLoggedIn, username]);
 
   const handleGetStarted = () => {
-    const username = localStorage.getItem("username"); 
-    if (username) {
-      navigate(`/${username}/jobs`); 
-    } else {
-      navigate("/login"); 
-    }
+    if (username) navigate(`/${username}/jobs`);
+    else navigate("/login");
   };
 
+  // Compute stats
+  const total = jobs.length;
+  const applied = jobs.filter((j) => j.status === "Applied").length;
+  const interviewing = jobs.filter((j) => j.status === "Interviewing").length;
+  const offers = jobs.filter((j) => j.status === "Offer").length;
+  const rejected = jobs.filter((j) => j.status === "Rejected").length;
+
+  // Monthly data for bar chart (last 6 months)
+  const getMonthlyData = () => {
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleString("default", { month: "short" });
+      const count = jobs.filter((j) => {
+        if (!j.appliedOn) return false;
+        const jd = new Date(j.appliedOn);
+        return jd.getMonth() === d.getMonth() && jd.getFullYear() === d.getFullYear();
+      }).length;
+      months.push({ label, count });
+    }
+    return months;
+  };
+  const monthlyData = getMonthlyData();
+  const maxMonthly = Math.max(...monthlyData.map((m) => m.count), 1);
+
+  // Donut chart percentages
+  const donutData = [
+    { label: "Applied", count: applied, color: "#3b82f6" },
+    { label: "Interviewing", count: interviewing, color: "#f59e0b" },
+    { label: "Offer", count: offers, color: "#10b981" },
+    { label: "Rejected", count: rejected, color: "#ef4444" },
+  ];
+
+  const buildConicGradient = () => {
+    if (total === 0) return "conic-gradient(#374151 0% 100%)";
+    let segments = [];
+    let cumulative = 0;
+    donutData.forEach(({ count, color }) => {
+      const pct = (count / total) * 100;
+      segments.push(`${color} ${cumulative}% ${cumulative + pct}%`);
+      cumulative += pct;
+    });
+    return `conic-gradient(${segments.join(", ")})`;
+  };
+
+  // Recent jobs (last 5)
+  const recentJobs = [...jobs]
+    .sort((a, b) => new Date(b.appliedOn || 0) - new Date(a.appliedOn || 0))
+    .slice(0, 5);
+
+  // Not logged in - show hero
+  if (!isLoggedIn) {
+    return (
+      <main className="dashboard-hero">
+        <div className="hero-content">
+          <h1 className="hero-title">
+            Take Control of Your Job Search <span className="hero-emoji">💼</span>
+          </h1>
+          <p className="hero-subtitle">
+            Job Tracker is your personal career command center. Keep every application,
+            interview, and offer organized in one place.
+          </p>
+          <button onClick={handleGetStarted} className="hero-cta">
+            Get Started Now 🚀
+          </button>
+        </div>
+
+        <div className="hero-features">
+          <div className="feature-card">
+            <span className="feature-icon">📌</span>
+            <h3>Smart Tracking</h3>
+            <p>Organize jobs, contacts, and timelines effortlessly</p>
+          </div>
+          <div className="feature-card">
+            <span className="feature-icon">📊</span>
+            <h3>Visual Dashboard</h3>
+            <p>See your progress with charts and statistics</p>
+          </div>
+          <div className="feature-card">
+            <span className="feature-icon">🔐</span>
+            <h3>Secure & Private</h3>
+            <p>JWT authentication keeps your data safe</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Logged in - show dashboard
   return (
-    <main className="flex flex-col items-center justify-center px-6 py-20 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-[85vh]">
-      
-      {/* Hero */}
-      <h1 className="text-5xl font-extrabold text-center mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-        Take Control of Your Job Search 💼
+    <main className="dashboard">
+      <h1 className="dashboard-title">
+        Welcome back, <span className="dashboard-username">{username}</span> 👋
       </h1>
 
-      <p className="text-lg text-gray-600 dark:text-gray-300 text-center mb-12 max-w-2xl leading-relaxed">
-        Job Tracker is your personal career command center.  
-        Keep every job application, recruiter detail, and interview organized in one secure place.  
-        Say goodbye to messy spreadsheets — stay focused and land your next role faster.
-      </p>
+      {loading ? (
+        <div className="dashboard-loading">Loading your dashboard...</div>
+      ) : (
+        <>
+          {/* Stat Cards */}
+          <div className="stat-cards">
+            <div className="stat-card stat-total">
+              <div className="stat-number">{total}</div>
+              <div className="stat-label">Total Applications</div>
+            </div>
+            <div className="stat-card stat-interview">
+              <div className="stat-number">{interviewing}</div>
+              <div className="stat-label">Interviewing</div>
+            </div>
+            <div className="stat-card stat-offer">
+              <div className="stat-number">{offers}</div>
+              <div className="stat-label">Offers</div>
+            </div>
+            <div className="stat-card stat-rejected">
+              <div className="stat-number">{rejected}</div>
+              <div className="stat-label">Rejected</div>
+            </div>
+          </div>
 
-      {/* Highlights */}
-      <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-10 max-w-3xl w-full mb-12">
-        <h2 className="text-2xl font-bold text-center text-yellow-500 mb-6">🚀 Why Choose Job Tracker?</h2>
-        <ul className="space-y-5 text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
-          <li>📌 <span className="font-semibold">Smart Job Tracking:</span> Save job titles, companies, platforms, application dates, recruiters, and follow-ups in a structured way.</li>
-          <li>🎨 <span className="font-semibold">Clean & Responsive UI:</span> Powered by React + Tailwind, optimized for desktop and mobile.</li>
-          <li>🌗 <span className="font-semibold">Dark/Light Mode:</span> Work the way you like with theme-aware design.</li>
-          <li>🔐 <span className="font-semibold">Secure Authentication:</span> JWT-based login with password encryption ensures your data stays safe.</li>
-          <li>📊 <span className="font-semibold">User-Centric Dashboard:</span> Access your personalized job board at <code>/:username/jobs</code>.</li>
-          <li>☁️ <span className="font-semibold">Persistent Storage:</span> Your job data is saved in a reliable MySQL database, not lost on refresh.</li>
-        </ul>
-      </div>
+          {/* Charts Row */}
+          <div className="charts-row">
+            {/* Donut Chart */}
+            <div className="chart-container">
+              <h3 className="chart-title">Application Status</h3>
+              <div className="donut-wrapper">
+                <div
+                  className="donut-chart"
+                  style={{ background: buildConicGradient() }}
+                >
+                  <div className="donut-hole">
+                    <span className="donut-total">{total}</span>
+                    <span className="donut-text">Total</span>
+                  </div>
+                </div>
+                <div className="donut-legend">
+                  {donutData.map((d) => (
+                    <div key={d.label} className="legend-item">
+                      <span className="legend-dot" style={{ backgroundColor: d.color }}></span>
+                      <span className="legend-label">{d.label}</span>
+                      <span className="legend-count">{d.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-      {/* Call to Action */}
-      <button
-        onClick={handleGetStarted}
-        className="px-10 py-4 rounded-full text-white font-bold text-lg shadow-lg transition-transform transform hover:scale-105 hover:shadow-2xl bg-gradient-to-r from-blue-500 to-indigo-600"
-      >
-        Get Started Now 🚀
-      </button>
+            {/* Bar Chart */}
+            <div className="chart-container">
+              <h3 className="chart-title">Monthly Applications</h3>
+              <div className="bar-chart">
+                {monthlyData.map((m, i) => (
+                  <div key={i} className="bar-group">
+                    <div className="bar-track">
+                      <div
+                        className="bar-fill"
+                        style={{ height: `${(m.count / maxMonthly) * 100}%` }}
+                      >
+                        {m.count > 0 && <span className="bar-value">{m.count}</span>}
+                      </div>
+                    </div>
+                    <span className="bar-label">{m.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-      {/* Footer Note */}
-      <p className="mt-6 text-sm text-gray-500 dark:text-gray-400 text-center max-w-xl">
-        Whether you’re applying to your first internship or your dream job, Job Tracker helps you stay 
-        <span className="font-semibold"> organized, confident, and ready to succeed.</span>
-      </p>
+          {/* Recent Activity */}
+          <div className="chart-container recent-activity">
+            <h3 className="chart-title">Recent Applications</h3>
+            {recentJobs.length === 0 ? (
+              <p className="no-activity">No applications yet. Start tracking your jobs!</p>
+            ) : (
+              <div className="activity-list">
+                {recentJobs.map((job, i) => (
+                  <div key={job.id || i} className="activity-item">
+                    <div className="activity-dot-wrapper">
+                      <div className={`activity-dot status-dot-${(job.status || "Applied").toLowerCase()}`}></div>
+                      {i < recentJobs.length - 1 && <div className="activity-line"></div>}
+                    </div>
+                    <div className="activity-info">
+                      <div className="activity-company">{job.company || "Untitled"}</div>
+                      <div className="activity-role">{job.role || "No role specified"}</div>
+                      <div className="activity-meta">
+                        <span className={`status-pill pill-${(job.status || "Applied").toLowerCase()}`}>
+                          {job.status || "Applied"}
+                        </span>
+                        {job.appliedOn && (
+                          <span className="activity-date">
+                            {new Date(job.appliedOn).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Action */}
+          <div className="dashboard-cta">
+            <button onClick={handleGetStarted} className="hero-cta">
+              Go to Jobs Board →
+            </button>
+          </div>
+        </>
+      )}
     </main>
   );
 };

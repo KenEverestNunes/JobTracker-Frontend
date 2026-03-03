@@ -52,7 +52,7 @@ const SignUp = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-sm mb-1" style={{ fontWeight: "bold" }}>Name</label>
+            <label className="block text-sm font-semibold mb-1">Name</label>
             <input
               type="text"
               {...register("name", { required: "Name is required" })}
@@ -74,7 +74,7 @@ const SignUp = () => {
 
           {/* Email */}
           <div>
-            <label className="block text-sm mb-1" style={{ fontWeight: "bold" }}>Email</label>
+            <label className="block text-sm font-semibold mb-1">Email</label>
             <input
               type="email"
               {...register("email", { required: "Email is required" })}
@@ -96,7 +96,7 @@ const SignUp = () => {
 
           {/* Username */}
           <div>
-            <label className="block text-sm mb-1" style={{ fontWeight: "bold" }}>Username</label>
+            <label className="block text-sm font-semibold mb-1">Username</label>
             <input
               type="text"
               {...register("username", { required: "Username is required" })}
@@ -118,7 +118,7 @@ const SignUp = () => {
 
           {/* Password */}
           <div>
-            <label className="block text-sm mb-1" style={{ fontWeight: "bold" }}>Password</label>
+            <label className="block text-sm font-semibold mb-1">Password</label>
             <input
               type="password"
               {...register("password", {
@@ -144,10 +144,10 @@ const SignUp = () => {
           <button
             type="submit"
             className="
-            w-full py-2 rounded-lg font-bold text-white
-            bg-gradient-to-r from-cyan-500 to-blue-600
-            hover:opacity-95 active:opacity-90 transition
-            shadow-lg shadow-blue-500/25
+            w-full py-3 rounded-xl font-bold text-white
+            bg-gradient-to-r from-indigo-500 to-purple-600
+            hover:opacity-90 transition
+            shadow-lg shadow-indigo-500/25
           "
           >
             Register
